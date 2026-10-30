@@ -141,3 +141,51 @@ def test_tuple_output_without_meter():
 def test_meter_with_plain_string_fn_fails_closed():
     # misconfiguration (no token counts) must not silently approve
     assert LLMReviewer(lambda p: APPROVE_JSON, meter=UsageMeter()).review(Call(), Ctx()) == Decision.DENY
+
+# ---------- history: genuine DENY vs. error-DENY ----------
+def test_history_records_genuine_decisions_with_reason():
+    rev = LLMReviewer(lambda p: '{"decision":"DENY","reason":"payee not named by user"}')
+    rev.review(Call(args={"recipient": "X", "amount": 1}), Ctx())
+    assert rev.history == [{"tool": "send_money", "args": {"recipient": "X", "amount": 1},
+                            "decision": "DENY", "reason": "payee not named by user", "error": None}]
+
+def test_history_marks_api_error_separately():
+    def boom(p): raise RuntimeError("401 invalid api key")
+    rev = LLMReviewer(boom)
+    assert rev.review(Call(), Ctx()) == Decision.DENY
+    assert rev.history[-1]["decision"] == "DENY"
+    assert rev.history[-1]["error"] == "RuntimeError: 401 invalid api key"
+
+def test_history_marks_unparsable_output_separately():
+    rev = LLMReviewer(lambda p: "I think this is fine")
+    rev.review(Call(), Ctx())
+    assert rev.history[-1]["error"].startswith("unparsable output")
+
+# ---------- adapters (fake client, no network) ----------
+class _FakeClient:
+    def __init__(self):
+        self.sent = {}
+        outer = self
+        class Completions:
+            def create(self, **kw):
+                outer.sent.update(kw)
+                msg = type("M", (), {"content": APPROVE_JSON})()
+                usage = type("U", (), {"prompt_tokens": 150, "completion_tokens": 12})()
+                return type("R", (), {"choices": [type("C", (), {"message": msg})()], "usage": usage})()
+        self.chat = type("Chat", (), {"completions": Completions()})()
+
+def test_openrouter_adapter_temperature_zero_and_metered():
+    from llm_clients import openrouter_fn, OPENROUTER_MODEL
+    client, meter = _FakeClient(), UsageMeter()
+    rev = LLMReviewer(openrouter_fn(client=client), meter=meter)
+    assert rev.review(Call(), Ctx()) == Decision.APPROVE
+    assert client.sent["temperature"] == 0 and client.sent["model"] == OPENROUTER_MODEL == "openai/gpt-4o-2024-05-13"
+    assert meter.report() == {"reviewer": {"in": 150, "out": 12}}
+
+def test_default_fn_prefers_openrouter(monkeypatch):
+    import llm_clients
+    picked = []
+    monkeypatch.setenv("OPENROUTER_API_KEY", "x")
+    monkeypatch.setattr(llm_clients, "openrouter_fn", lambda model, max_tokens: picked.append(model))
+    llm_clients.default_fn()
+    assert picked == ["openai/gpt-4o-2024-05-13"]

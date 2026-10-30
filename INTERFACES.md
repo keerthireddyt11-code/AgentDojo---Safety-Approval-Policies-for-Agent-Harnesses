@@ -31,7 +31,10 @@ reviewer.review(call: FunctionCall, ctx: Context) -> Decision   # APPROVE | DENY
   `user_task`, `tool`, `args`, `recent_tool_output` (last tool message text, first 1500 chars;
   `ERROR: <message>` if that tool call failed, as the agent saw it).
 - It must not read `ctx.env` or anything else on `ctx` (enforced by `test_reviewer_leakage.py`).
-- Real LLM: `LLMReviewer(llm_clients.openai_fn(), meter=meter)`, temperature 0, tokens booked as `"reviewer"`.
+- Real LLM: `LLMReviewer(llm_clients.default_fn(), meter=meter)` (OpenRouter or OpenAI), temperature 0,
+  tokens booked as `"reviewer"`.
+- `reviewer.history` holds one `{tool, args, decision, reason, error}` per review; A's runner should
+  save it into the per-run record so errors are not counted as genuine denials.
 - Any error / unparsable output -> `DENY` (fail closed).
 - The gate increments `used` **before** calling the reviewer, so a reviewer error still costs budget.
 

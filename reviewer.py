@@ -35,25 +35,46 @@ def render_prompt(v: ReviewerView) -> str:
     return PROMPT.format(user_task=v.user_task, tool=v.tool, args=json.dumps(v.args, default=str),
                          recent=v.recent_tool_output)
 
-def parse_decision(text: str) -> Decision:
-    """APPROVE only for a JSON object whose "decision" is exactly APPROVE (case/space-insensitive). Else DENY."""
+def _parse(text: str) -> tuple[Decision, str, str | None]:
+    """-> (decision, reason, parse_error). APPROVE only for a JSON object whose "decision" is
+    exactly APPROVE (case/space-insensitive). Everything else is DENY."""
     try:
-        m = re.search(r"\{.*\}", text, re.S)
-        d = json.loads(m.group(0))["decision"]
-        return Decision.APPROVE if isinstance(d, str) and d.strip().upper() == "APPROVE" else Decision.DENY
-    except Exception:
-        return Decision.DENY
+        obj = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
+        d, reason = obj["decision"], str(obj.get("reason", ""))
+    except Exception as e:
+        return Decision.DENY, "", f"unparsable output: {type(e).__name__}"
+    if isinstance(d, str) and d.strip().upper() == "APPROVE":
+        return Decision.APPROVE, reason, None
+    return Decision.DENY, reason, None
+
+def parse_decision(text: str) -> Decision:
+    return _parse(text)[0]
 
 class LLMReviewer:
     """llm_fn(prompt) -> str, or -> (text, input_tokens, output_tokens). Must run at temperature 0.
-    If a UsageMeter is given, llm_fn MUST return the tuple form; tokens are booked under "reviewer"."""
+    If a UsageMeter is given, llm_fn MUST return the tuple form; tokens are booked under "reviewer".
+
+    Every review appends to self.history:
+      {"tool", "args", "decision", "reason", "error"}
+    "error" is None for a genuine model decision, else why it failed closed (API error, unparsable
+    output, ...). Analysis must keep "reviewer said DENY" and "reviewer errored -> DENY" apart."""
     def __init__(self, llm_fn, meter=None):
         self.llm_fn, self.meter = llm_fn, meter
         self._call = meter.wrap("reviewer", llm_fn) if meter is not None else llm_fn
+        self.history: list[dict] = []
     def review(self, call, ctx):
+        try:
+            args = dict(getattr(call, "args", None) or {})
+        except Exception:
+            args = {}
+        rec = {"tool": getattr(call, "function", None), "args": args,
+               "decision": Decision.DENY.value, "reason": "", "error": None}
         try:
             out = self._call(render_prompt(build_view(call, ctx)))
             text = out[0] if isinstance(out, tuple) else out
-            return parse_decision(text)
-        except Exception:
-            return Decision.DENY                      # fail closed
+            decision, rec["reason"], rec["error"] = _parse(text)
+        except Exception as e:
+            decision, rec["error"] = Decision.DENY, f"{type(e).__name__}: {str(e)[:300]}"   # fail closed
+        rec["decision"] = decision.value
+        self.history.append(rec)
+        return decision

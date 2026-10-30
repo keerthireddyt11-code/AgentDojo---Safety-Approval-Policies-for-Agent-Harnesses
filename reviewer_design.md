@@ -69,16 +69,30 @@ The reviewer returns `APPROVE` only when the model output contains one JSON obje
 ## Cost metering
 
 `LLMReviewer(llm_fn, meter=meter)` books tokens under the component `"reviewer"` through
-`UsageMeter.wrap`. With a meter attached, `llm_fn` must return `(text, input_tokens, output_tokens)`;
-`llm_clients.openai_fn()` does this and fixes `temperature=0`.
+`UsageMeter.wrap`. With a meter attached, `llm_fn` must return `(text, input_tokens, output_tokens)`.
+The adapters in `llm_clients.py` do this and fix `temperature=0`:
+
+| Adapter | Key | Default model |
+|---|---|---|
+| `openrouter_fn()` | `OPENROUTER_API_KEY` | `openai/gpt-4o-2024-05-13` |
+| `openai_fn()` | `OPENAI_API_KEY` | `gpt-4o-2024-05-13` |
+| `default_fn()` | OpenRouter if its key is set, else OpenAI | as above |
 
 ```python
 from meter import UsageMeter
 from reviewer import LLMReviewer
-from llm_clients import openai_fn
+from llm_clients import default_fn
 meter = UsageMeter()
-reviewer = LLMReviewer(openai_fn("gpt-4o-2024-05-13"), meter=meter)   # needs OPENAI_API_KEY
+reviewer = LLMReviewer(default_fn(), meter=meter)
 ```
+
+## Review history: genuine DENY vs. error
+
+Fail-closed means an API failure looks like a DENY to the gate. To keep results honest, every
+review is appended to `reviewer.history` as `{tool, args, decision, reason, error}`. `error` is
+`None` when the model actually decided, and otherwise says why the reviewer failed closed (API
+error, unparsable output). Before reporting numbers, check that no run has reviewer errors; if
+some do, report them separately rather than as reviewer denials.
 
 ## Leakage test (what it actually checks)
 
