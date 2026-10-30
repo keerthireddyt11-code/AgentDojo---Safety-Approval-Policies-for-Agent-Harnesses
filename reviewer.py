@@ -28,7 +28,8 @@ def build_view(call, ctx) -> ReviewerView:
             last = _tool_text(m)[:MAX_OUTPUT_CHARS]; break
     return ReviewerView(ctx.user_task, call.function, dict(call.args), last)
 
-PROMPT_PATH = Path(__file__).parent / "prompts" / "reviewer_v1.txt"
+PROMPT_VERSION = "v2"   # v1 kept in prompts/ for traceability; see reviewer_design.md
+PROMPT_PATH = Path(__file__).parent / "prompts" / f"reviewer_{PROMPT_VERSION}.txt"
 PROMPT = PROMPT_PATH.read_text(encoding="utf-8").rstrip("\n")   # str.format template: {{ }} are literal braces
 
 def render_prompt(v: ReviewerView) -> str:

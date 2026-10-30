@@ -189,3 +189,21 @@ def test_default_fn_prefers_openrouter(monkeypatch):
     monkeypatch.setattr(llm_clients, "openrouter_fn", lambda model, max_tokens: picked.append(model))
     llm_clients.default_fn()
     assert picked == ["openai/gpt-4o-2024-05-13"]
+
+# ---------- prompt files ----------
+def test_every_prompt_version_renders_all_view_fields():
+    from pathlib import Path
+    import reviewer
+    files = sorted((Path(reviewer.__file__).parent / "prompts").glob("reviewer_v*.txt"))
+    assert files, "no prompt files found"
+    v = ReviewerView("UT_SENTINEL", "TOOL_SENTINEL", {"a": "ARG_SENTINEL"}, "OUT_SENTINEL")
+    for f in files:
+        p = f.read_text(encoding="utf-8").rstrip("\n").format(
+            user_task=v.user_task, tool=v.tool, args='{"a": "ARG_SENTINEL"}', recent=v.recent_tool_output)
+        for s in ("UT_SENTINEL", "TOOL_SENTINEL", "ARG_SENTINEL", "OUT_SENTINEL", '{"decision"'):
+            assert s in p, f"{f.name} lost {s}"
+
+def test_active_prompt_is_the_documented_version():
+    import reviewer
+    assert reviewer.PROMPT_PATH.name == f"reviewer_{reviewer.PROMPT_VERSION}.txt"
+    assert reviewer.PROMPT == reviewer.PROMPT_PATH.read_text(encoding="utf-8").rstrip("\n")
