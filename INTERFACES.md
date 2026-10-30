@@ -28,8 +28,10 @@ reviewer.review(call: FunctionCall, ctx: Context) -> Decision   # APPROVE | DENY
 ```
 
 - The reviewer must build a `ReviewerView` from `(call, ctx)` and use **only** that view:
-  `user_task`, `tool`, `args`, `recent_tool_output` (last tool message text, first 1500 chars).
-- It must not read `ctx.env` or anything else on `ctx`.
+  `user_task`, `tool`, `args`, `recent_tool_output` (last tool message text, first 1500 chars;
+  `ERROR: <message>` if that tool call failed, as the agent saw it).
+- It must not read `ctx.env` or anything else on `ctx` (enforced by `test_reviewer_leakage.py`).
+- Real LLM: `LLMReviewer(llm_clients.openai_fn(), meter=meter)`, temperature 0, tokens booked as `"reviewer"`.
 - Any error / unparsable output -> `DENY` (fail closed).
 - The gate increments `used` **before** calling the reviewer, so a reviewer error still costs budget.
 
@@ -63,4 +65,4 @@ Saved as one JSON line per run. Labels such as "was this call truly unsafe" are 
 |----------------------------------|---------------------------------------------|
 | `reviewer.review(view)`          | `reviewer.review(call, ctx)`; view built inside the reviewer |
 | `DenyAll` control baseline       | not present in `gate.py`                    |
-| UsageMeter "design"              | `meter.py` exists, not yet wired to any LLM call |
+| UsageMeter "design"              | `meter.py` exists; wired to the reviewer only (agent and policy still to do) |
