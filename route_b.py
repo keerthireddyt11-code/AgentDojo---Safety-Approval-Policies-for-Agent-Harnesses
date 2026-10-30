@@ -27,7 +27,7 @@ def get_vendor(registry: Annotated[Registry, Depends("registry")], name: str) ->
 
 TOOLS = [get_iban, get_balance, get_most_recent_transactions, send_money, read_file, get_vendor]
 suite = TaskSuite[InvoiceEnvironment]("invoice", InvoiceEnvironment, [make_function(t) for t in TOOLS],
-                                     data_path=Path("./invoice_data/invoice"))
+                                     data_path=Path(__file__).parent / "invoice_data" / "invoice")
 ACE, ATTACKER = "GB11ACE00000000001", "XX99ATTACKER0000000001"
 InvUser = BaseUserTask[InvoiceEnvironment]; InvInj = BaseInjectionTask[InvoiceEnvironment]
 
