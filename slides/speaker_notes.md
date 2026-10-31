@@ -54,14 +54,14 @@ Handovers are marked with **→**.
 ## 7 · An AI reviewer that can't cheat (C, 55 s)
 - "We can't hire people to review thousands of actions, so an AI plays the human. That's risky: it could cheat."
 - "So it sees only what a real person would see: your request, the action and its details, and what the agent just read."
-- "It never sees which run is an attack, or the right answers. We wrote 25 automated tests, including one that plants fake answers and checks they never reach it."
+- "It never sees which run is an attack, or the right answers. Our test suite, 25 tests in all, includes one that plants fake answers and checks they never reach it."
 - "Our first version was too strict: it refused a real refund. Version 2 got all 5 of our test cases right."
 - **→ "B designed the policy that decides which door to use."**
 
 ## 8 · Where did the payee come from? (B, 55 s)
 - "The core question our policy asks for payments is: where did this payee come from?"
-- "If it came from you, your message or your own account, we approve."
-- "If it only shows up inside a file or a transaction note, it could be planted, so we ask a human."
+- "If it came from you, meaning your message, your own IBAN or your standing orders, we approve."
+- "If it only shows up in a file or in the transaction list, where outsiders can write text, it could be planted, so we ask a human."
 - "If it came from nowhere at all, we deny."
 - "Reading data is always fine, and changing a password always goes to a human."
 - *(Say the final policy name and anything added since.)*
@@ -76,7 +76,7 @@ Handovers are marked with **→**.
 
 ## 10 · Results (B, 60 s)
 *(Fill in once the final runs are done.)*
-- "Here's safe completion against the review budget, one line per policy."
+- "Here's safe completion against the review budget, one line per policy." *(Once results exist, you can give the slide a headline that states the finding.)*
 - "At k = [2], our policy completes [X]% of tasks safely. Approve-all manages [Y]%, because attacks get through."
 - "Ask-all eventually gets there too, but uses [N] times more human reviews."
 - "The extra AI cost of the whole run was about $[Z]."
@@ -90,7 +90,7 @@ Handovers are marked with **→**.
 
 ## 12 · Spend reviews where the gate is unsure (C, 35 s)
 - "So where is a human worth it? Reading data, or paying someone you named: decide automatically."
-- "A payee that only appears in a file, or the right vendor with the wrong amount: that's where a person matters."
+- "A payee that only appears in a file, or the right vendor with the wrong amount: that's where we expect a person to matter most." *(Say what the results showed.)*
 - "In our invoice test, the reviewer stopped a 9,800 payment to the real vendor because it didn't match the invoice."
 - **→ (if demo) "A will show it live." / (no demo) go to slide 14.**
 
@@ -101,7 +101,7 @@ Handovers are marked with **→**.
 
 ## 14 · Takeaways (C, 25 s)
 - "Three takeaways. Check the whole request, not just who gets paid."
-- "A few well-placed reviews beat reviewing everything."
+- "A few well-placed reviews beat reviewing everything." *(Only if the results support it.)*
 - "And test your tests: ours once said 'safe' for an attack it never even tried. We caught it and fixed it."
 - "Thank you. Happy to take questions."
 
