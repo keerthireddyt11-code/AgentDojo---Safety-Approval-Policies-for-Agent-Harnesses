@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Individual Report — Keerthi Reddy — PE6203 Group Project 2</title>
+<style>
+  @page { size: A4; margin: 20mm 20mm 18mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: Georgia, "Times New Roman", serif; color: #1a1a1a; font-size: 10.8pt; line-height: 1.5; margin: 0; }
+  h1 { font-size: 19pt; margin: 0 0 2px; line-height: 1.2; }
+  .subtitle { font-size: 11pt; color: #444; font-style: italic; margin: 0 0 4px; }
+  .meta { font-size: 9.5pt; color: #555; margin: 0 0 16px; padding-bottom: 12px; border-bottom: 2px solid #1f3a5f; }
+  h2 { font-size: 13pt; color: #1f3a5f; margin: 20px 0 6px; padding-bottom: 3px; border-bottom: 1px solid #c8d2e0; }
+  h3 { font-size: 11pt; margin: 13px 0 3px; color: #2a2a2a; }
+  p { margin: 5px 0 9px; }
+  ul { margin: 5px 0 10px; padding-left: 20px; }
+  li { margin: 4px 0; }
+  b { color: #10243d; }
+  .note { font-size: 9pt; color: #555; font-style: italic; }
+  code { font-family: "Courier New", monospace; font-size: 9.4pt; background: #f0f2f5; padding: 0 3px; border-radius: 3px; }
+  .keep { break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<h1>Individual Report</h1>
+<p class="subtitle">PE6203 Group Project 2 — Safety Approval Policies for Agent Harnesses</p>
+<p class="meta"><b>Thummalapally Keerthi Reddy</b> · keerthir001@e.ntu.edu.sg · Project: <i>Evidence-Grounded Approval Gates for Tool-Using Agents</i></p>
+
+<h2>1. Individual Contributions</h2>
+<p>My primary responsibility was the <b>simulated human reviewer</b>, the component the gate calls whenever the policy
+escalates a tool call. I also built the logic for a <b>custom invoice evaluation suite</b>, and contributed to the
+<b>failure and escalation-value analysis</b> and the project's documentation.</p>
+
+<h3>1.1 Simulated human reviewer</h3>
+<p>I designed and implemented the LLM-based reviewer that stands in for a human approver, since real reviewers cannot
+scale to a benchmark of over a thousand runs.</p>
+<ul>
+  <li class="keep"><b>Four-field reviewer view.</b> The reviewer sees only what a real person approving the call would see:
+    the user's request, the proposed tool, its arguments, and the latest tool output (truncated to 1,500 characters).
+    Its prompt treats tool output strictly as data, not as instructions.</li>
+  <li class="keep"><b>Isolation from oracle information.</b> The reviewer never has access to benchmark labels, attack
+    annotations, or hidden environment state. A leakage test confirms none of this information can reach the reviewer's
+    prompt, keeping the evaluation tamper-evident.</li>
+  <li class="keep"><b>Prompt refinement (v1 to v2).</b> Version 1 wrongly rejected a legitimate refund whose amount the
+    agent had correctly filled in from the transaction history. I diagnosed this and revised the prompt so version 2
+    explicitly allows details to be taken from visible data, while preserving attack resistance.</li>
+  <li class="keep"><b>Fail-closed behaviour.</b> Only a well-formed JSON <code>APPROVE</code> executes a call; any
+    malformed output or provider error defaults to <code>DENY</code>. The model runs at temperature 0 for deterministic
+    decisions.</li>
+  <li class="keep"><b>Model adapters and metering.</b> I wrote adapters for OpenAI and OpenRouter and the per-run record
+    format, with token metering so the reviewer's cost could be reported separately (about US$0.003 to US$0.004 per 160
+    runs under our policy).</li>
+</ul>
+
+<h3>1.2 Custom invoice evaluation suite (logic)</h3>
+<p>Beyond AgentDojo's banking tasks, I built the logic for an independent invoice-payment suite with a trusted
+<b>vendor registry</b>, including the difficult "right vendor, wrong amount" case the benchmark does not cover. This
+logic underpinned the transfer experiment, where the same gate and policy, unchanged, paid the invoice at every budget
+with 0 of 9 attacks succeeding. The work also surfaced the <b>forged-document gap</b>: if an attacker silently rewrites
+the IBAN on a bill, the grant points at the attacker, and an independent payee source such as the vendor registry is
+what closes it.</p>
+
+<h3>1.3 Analysis and documentation</h3>
+<p>I contributed to classifying failures into over-permissive, over-conservative and reviewer-induced types, and to
+interpreting the representative trajectories. I also contributed to the escalation-value discussion of which call types
+genuinely benefit from human review. Alongside this, I helped prepare draft copies of the project's written report and
+presentation materials, bringing the team's findings, results and limitations into a consistent narrative.</p>
+
+<h2>2. Lessons Learned</h2>
+<p><b>A limited view is what makes a simulated reviewer trustworthy.</b> It was tempting to give the reviewer more
+context to improve its decisions. Restricting it to what a human would actually see, and proving that restriction with a
+test, is what lets us claim the results are not inflated by oracle access. The leakage test mattered as much as the
+reviewer itself.</p>
+<p><b>Prompt wording changes behaviour in subtle, measurable ways.</b> The v1 reviewer looked reasonable but silently
+rejected a valid refund because it treated agent-filled details as unauthorized. The fix was one clarifying sentence.
+The lesson is that a reviewer must be calibrated on both safe and unsafe cases before it is trusted to judge a policy,
+not assumed correct from the prompt alone.</p>
+<p><b>More human review is not more safety.</b> This surprised me most. Full escalate spent up to 279 reviewer calls and
+never rose above the 0.31 completion floor, while our reviewer was called at most 51 times and never approved an attack.
+Safety came from the authorization logic deciding which calls were genuinely ambiguous, not from the volume of reviews.</p>
+<p><b>Fail-closed accounting keeps results honest.</b> Because an API error looks identical to a strict reviewer, I
+logged reviewer errors separately from genuine denials. Without this, a provider failure could have masqueraded as safe
+behaviour.</p>
+<p><b>The reviewer's main weakness was a lack of context, not capability.</b> In clean tasks 9 and 10 the reviewer
+approved incomplete writes because it did not know why the call had been escalated. A correct decision needed the
+escalation reason, not a stronger model.</p>
+<p><b>On a personal level, this was my first time building on a large external codebase and grounding the work in research
+papers.</b> Plugging our gate into AgentDojo meant reading an unfamiliar framework closely enough to find the one place to
+intervene, rather than rewriting it, and reading the prompt-injection literature taught me to frame our design against what
+had already been tried and to borrow the field's vocabulary and evaluation methods. I came away more comfortable working
+inside systems and research I did not write, which is how most real development and research actually happens.</p>
+
+<h2>3. Future Plans</h2>
+<p>If this work continues, I would focus on the parts closest to my contributions:</p>
+<ul>
+  <li class="keep"><b>Give the reviewer the escalation reason.</b> The two reviewer-induced failures (tasks 9 and 10) both
+    came from the reviewer not knowing why a call was escalated. Passing the triggering rule into its context is a small
+    change that should directly remove these failures.</li>
+  <li class="keep"><b>Close the forged-document gap with payee corroboration.</b> The invoice suite already showed a vendor
+    registry defends against a silently rewritten IBAN. Extending this to the banking suite, by checking payees against an
+    independent trusted source rather than the document alone, would address the one gap AgentDojo does not test.</li>
+  <li class="keep"><b>Broaden the reviewer's robustness.</b> I would test the reviewer against adaptive attacks aimed at
+    its own prompt, and measure its stability across models and across repeated runs, since our current results use a
+    single run per setting with no confidence intervals.</li>
+  <li class="keep"><b>Add a reviewer confidence score (my own direction).</b> Rather than a bare APPROVE or DENY, I would
+    have the reviewer return a confidence level, so that low-confidence approvals could be held back or routed differently
+    instead of executing silently, as happened in tasks 9 and 10.</li>
+  <li class="keep"><b>Build a small human-labelled calibration set (my own direction).</b> I would collect a handful of
+    hand-labelled escalation cases, safe and unsafe, and use them as a fixed check that any future reviewer prompt or
+    model must pass before it is used for evaluation, turning prompt tuning from a judgement call into a measured one.</li>
+</ul>
+
+</body>
+</html>
