@@ -86,6 +86,10 @@ behaviour.</p>
 <p><b>The reviewer's main weakness was a lack of context, not capability.</b> In clean tasks 9 and 10 the reviewer
 approved incomplete writes because it did not know why the call had been escalated. A correct decision needed the
 escalation reason, not a stronger model.</p>
+<p><b>On a personal level, I learned to treat my own work with suspicion.</b> My first instinct was to trust the reviewer
+once the prompt read well, but it took a concrete failing case to reveal that version 1 was quietly rejecting valid
+actions. Writing a test that could prove my component was honest, rather than assuming it, changed how I approach building
+and evaluating anything I am responsible for.</p>
 
 <h2>3. Future Plans</h2>
 <p>If this work continues, I would focus on the parts closest to my contributions:</p>
@@ -106,9 +110,6 @@ escalation reason, not a stronger model.</p>
     hand-labelled escalation cases, safe and unsafe, and use them as a fixed check that any future reviewer prompt or
     model must pass before it is used for evaluation, turning prompt tuning from a judgement call into a measured one.</li>
 </ul>
-
-<p class="note">This individual report describes my own contributions and reflections. All figures are consistent with the
-group report, <i>Evidence-Grounded Approval Gates for Tool-Using Agents</i>.</p>
 
 </body>
 </html>
